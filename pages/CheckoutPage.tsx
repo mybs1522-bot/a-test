@@ -5,6 +5,7 @@ import ModernPaymentForm from "../components/ui/modern-payment-form";
 import { useNavigate } from "react-router-dom";
 import { sendStageEmail } from "../services/email";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { logPaymentSuccess, logPaymentFailure } from "../services/payment-logging";
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,11 +33,26 @@ const CheckoutPage: React.FC = () => {
 
   const f = (v: number) => v.toString().padStart(2, "0");
 
-  const handleSuccess = (customerId?: string, paymentMethodId?: string, paymentIntentId?: string) => {
+  const handleSuccess = async (customerId?: string, paymentMethodId?: string, paymentIntentId?: string) => {
     console.log('[CheckoutPage] Payment succeeded. customerId:', customerId, 'paymentMethodId:', paymentMethodId, 'paymentIntentId:', paymentIntentId);
+    
+    // Log successful payment
+    await logPaymentSuccess(email, 'checkout', FRONT_END_PRICE, {
+      payment_intent_id: paymentIntentId,
+      payment_method_id: paymentMethodId,
+      customer_id: customerId,
+    });
+    
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: FRONT_END_PRICE, currency: "USD" });
     sendStageEmail(email, 'render');
     navigate("/onetime", { state: { customerId, paymentMethodId, paymentIntentId, email, purchased: ['render'] } });
+  };
+
+  const handleError = async (error: any) => {
+    console.error('[CheckoutPage] Payment failed:', error);
+    
+    // Log failed payment
+    await logPaymentFailure(email, 'checkout', FRONT_END_PRICE, error.message || 'Payment failed');
   };
 
   return (
@@ -118,7 +134,7 @@ const CheckoutPage: React.FC = () => {
           </div>
           {emailError && <p className="text-red-500 text-[10px] mb-2 font-bold">Enter a valid email address</p>}
 
-          <ModernPaymentForm bare email={email} onSuccess={handleSuccess} amount={`$${FRONT_END_PRICE}`} />
+          <ModernPaymentForm bare email={email} onSuccess={handleSuccess} onError={handleError} amount={`$${FRONT_END_PRICE}`} />
 
           <div className="flex items-center justify-center gap-1.5 mt-4 text-[11px] text-gray-500 font-medium text-center">
             🎓 Skill Certificate will be automatically mailed after you complete the course.

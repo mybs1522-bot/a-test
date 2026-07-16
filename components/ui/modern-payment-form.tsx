@@ -146,11 +146,12 @@ const StripeInputWrap = ({ children }: { children: React.ReactNode }) => (
 interface CheckoutFormProps {
   email: string;
   onSuccess: (customerId?: string, paymentMethodId?: string, paymentIntentId?: string) => void;
+  onError?: (error: any) => void;
   onBack?: () => void;
   amount: string;
 }
 
-function CheckoutForm({ email, onSuccess, onBack, amount }: CheckoutFormProps) {
+function CheckoutForm({ email, onSuccess, onError, onBack, amount }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isLoading, setIsLoading] = useState(false);
@@ -190,6 +191,7 @@ function CheckoutForm({ email, onSuccess, onBack, amount }: CheckoutFormProps) {
     if (error) {
       setMessage(error.message ?? "Payment failed. Please try again.");
       setIsLoading(false);
+      if (onError) onError(error);
     } else if (paymentIntent?.status === "succeeded") {
       const numericAmount = parseInt(amount.replace(/[^0-9]/g, ''), 10) || 9;
       if ((window as any).fbq) (window as any).fbq('track', 'Purchase', { value: numericAmount, currency: 'USD' });
@@ -270,6 +272,7 @@ function CheckoutForm({ email, onSuccess, onBack, amount }: CheckoutFormProps) {
 interface ModernPaymentFormProps {
   email: string;
   onSuccess: (customerId?: string, paymentMethodId?: string, paymentIntentId?: string) => void;
+  onError?: (error: any) => void;
   onBack?: () => void;
   amount?: string;
   bare?: boolean;
@@ -278,6 +281,7 @@ interface ModernPaymentFormProps {
 export default function ModernPaymentForm({
   email,
   onSuccess,
+  onError,
   onBack,
   amount = "$9",
   bare = false,
@@ -293,7 +297,7 @@ export default function ModernPaymentForm({
 
   return wrap(
     <Elements stripe={stripePromise} options={{ appearance }}>
-      <CheckoutForm email={email} onSuccess={onSuccess} onBack={onBack} amount={amount} />
+      <CheckoutForm email={email} onSuccess={onSuccess} onError={onError} onBack={onBack} amount={amount} />
     </Elements>
   );
 }

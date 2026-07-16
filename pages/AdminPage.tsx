@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Lock, LogOut, Users, RefreshCw, Search, ChevronDown, ChevronUp,
-  CheckCircle2, Clock, Mail, Phone, User, Briefcase, ArrowUpDown, X,
-  Shield, Eye, EyeOff,
+  Lock, LogOut, RefreshCw, Search, ChevronDown, ChevronUp,
+  CheckCircle2, Clock, Mail, ArrowUpDown, X,
+  Shield, Eye, EyeOff, DollarSign, TrendingUp, AlertCircle,
+  Users,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,38 +12,43 @@ const ADMIN_USER = 'adminrob';
 const ADMIN_PASS = 'Robbin#15';
 const SESSION_KEY = 'admin_auth_v1';
 
-// ── Supabase (reads leads table via service role key or anon if RLS allows) ──
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? 'https://aexrgtpxyzfxjecozstf.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleHJndHB4eXpmeGplY296c3RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTY0MjcsImV4cCI6MjA4Nzg3MjQyN30._ZSmh9iTP3etyGj5XrkEGJtRp9kR8z6jAmLOMesIvkg';
+// ── Supabase ──
+const supabaseUrl = 'https://hsxwsqfrjfbqlbjlrnpz.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzeHdzcWZyamZicWxiamxybnB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDI5NTAsImV4cCI6MjA5OTc3ODk1MH0.iEgGWAMeT9zh5c0_kZkjmI9fQdTJjTucJX5uX047kEE';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-
 // ── Types ──
-interface Lead {
+interface PaymentLog {
   id: string;
   email: string;
-  name: string | null;
-  role: string | null;
-  whatsapp: string | null;
-  stage: string;
-  followup_1_at: string | null;
-  followup_2_at: string | null;
-  followup_3_at: string | null;
+  funnel_type: string;
+  status: string;
+  amount: number;
+  currency: string;
+  error_message: string | null;
   created_at: string;
-  updated_at: string;
+  checkout_completed: boolean;
+  render_upsell_completed: boolean;
+  full_upsell_completed: boolean;
+  books_upsell_completed: boolean;
+  books_downsell_completed: boolean;
+  total_amount_paid: number;
 }
 
-// ── Stage config ──
-const STAGES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  'sketchup-free':  { label: 'SketchUp Free',   color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',   dot: 'bg-blue-500' },
-  'render-bundle':  { label: 'Render Bundle',   color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200', dot: 'bg-orange-500' },
-  'full-bundle':    { label: 'Full Bundle',      color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200', dot: 'bg-purple-500' },
-  'books-bundle':   { label: 'Books Bundle',     color: 'text-emerald-700',bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
-  'books-downsell': { label: 'Books Downsell',   color: 'text-slate-700',  bg: 'bg-slate-50 border-slate-200',  dot: 'bg-slate-400' },
+// ── Funnel config ──
+const FUNNELS: Record<string, { label: string }> = {
+  'checkout':         { label: 'Initial Checkout' },
+  'render-upsell':    { label: 'Render Upsell' },
+  'full-upsell':      { label: 'Full Upsell' },
+  'books-upsell':     { label: 'Books Upsell' },
+  'books-downsell':   { label: 'Books Downsell' },
 };
 
-const stageMeta = (stage: string) =>
-  STAGES[stage] ?? { label: stage, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200', dot: 'bg-gray-400' };
+const STATUS_CONFIG: Record<string, { label: string }> = {
+  'success': { label: 'Success' },
+  'failed':  { label: 'Failed' },
+  'pending': { label: 'Pending' },
+};
 
 const fmtDate = (s: string | null) => {
   if (!s) return '—';
@@ -58,6 +64,8 @@ const fmtTimeAgo = (s: string) => {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 };
+
+const fmtMoney = (amount: number) => `$${amount.toFixed(2)}`;
 
 // ─────────────────────────────────────
 // LOGIN SCREEN
@@ -85,57 +93,48 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      {/* Background grid */}
-      <div className="absolute inset-0 opacity-10" style={{
-        backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
-        backgroundSize: '40px 40px',
-      }} />
-
-      <div className="relative w-full max-w-sm">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-orange-500 rounded-2xl mb-4 shadow-lg shadow-orange-500/30">
-            <Shield size={28} className="text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4">
+            <Shield size={32} className="text-black" />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Admin Portal</h1>
-          <p className="text-slate-400 text-sm mt-1">Avada Design — Restricted Access</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Admin Portal</h1>
+          <p className="text-gray-400 text-sm mt-2">Payment Analytics Dashboard</p>
         </div>
 
         {/* Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+        <div className="bg-white rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Username</label>
-              <div className="relative">
-                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  value={user}
-                  onChange={e => setUser(e.target.value)}
-                  placeholder="Username"
-                  autoComplete="username"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
-                />
-              </div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Username</label>
+              <input
+                type="text"
+                value={user}
+                onChange={e => setUser(e.target.value)}
+                placeholder="Username"
+                autoComplete="username"
+                className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-black text-sm placeholder-gray-400 focus:outline-none focus:border-black transition-all"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Password</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Password</label>
               <div className="relative">
-                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={pass}
                   onChange={e => setPass(e.target.value)}
                   placeholder="Password"
                   autoComplete="current-password"
-                  className="w-full pl-10 pr-10 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full pl-10 pr-10 py-3 bg-gray-100 border border-gray-200 rounded-xl text-black text-sm placeholder-gray-400 focus:outline-none focus:border-black transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
                 >
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -143,16 +142,16 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 bg-red-900/30 border border-red-700/50 rounded-xl px-4 py-3">
-                <X size={14} className="text-red-400 shrink-0" />
-                <p className="text-red-400 text-sm font-medium">{error}</p>
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <X size={14} className="text-red-500 shrink-0" />
+                <p className="text-red-600 text-sm font-medium">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:from-orange-400 hover:to-amber-400 transition-all disabled:opacity-60 shadow-lg shadow-orange-500/20"
+              className="w-full py-3.5 bg-black text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-800 transition-all disabled:opacity-60"
             >
               {loading ? (
                 <span className="flex items-center gap-2"><RefreshCw size={16} className="animate-spin" /> Signing in…</span>
@@ -168,130 +167,147 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 };
 
 // ─────────────────────────────────────
-// STAGE BADGE
+// BADGES
 // ─────────────────────────────────────
-const StageBadge: React.FC<{ stage: string }> = ({ stage }) => {
-  const m = stageMeta(stage);
+const FunnelBadge: React.FC<{ funnel: string }> = ({ funnel }) => {
+  const label = FUNNELS[funnel]?.label || funnel;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${m.bg} ${m.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
-      {m.label}
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-gray-700">
+      {label}
+    </span>
+  );
+};
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const config = STATUS_CONFIG[status];
+  const label = config?.label || status;
+  const isSuccess = status === 'success';
+  const isFailed = status === 'failed';
+  
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+      isSuccess 
+        ? 'border-green-500 bg-green-50 text-green-700' 
+        : isFailed 
+          ? 'border-red-500 bg-red-50 text-red-700'
+          : 'border-gray-200 bg-gray-50 text-gray-700'
+    }`}>
+      {label}
     </span>
   );
 };
 
 // ─────────────────────────────────────
-// FOLLOWUP DOTS
+// TIER STATUS INDICATOR
 // ─────────────────────────────────────
-const FollowupDots: React.FC<{ f1: string | null; f2: string | null; f3: string | null }> = ({ f1, f2, f3 }) => (
-  <div className="flex items-center gap-1" title={`F1: ${fmtDate(f1)}\nF2: ${fmtDate(f2)}\nF3: ${fmtDate(f3)}`}>
-    {[f1, f2, f3].map((f, i) => (
-      <span
-        key={i}
-        className={`w-2.5 h-2.5 rounded-full border ${f ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-200 border-slate-300'}`}
-        title={`Followup ${i + 1}: ${fmtDate(f)}`}
-      />
-    ))}
-    <span className="text-[10px] text-slate-400 ml-1">
-      {[f1, f2, f3].filter(Boolean).length}/3 sent
-    </span>
-  </div>
-);
+const TierStatus: React.FC<{ log: PaymentLog }> = ({ log }) => {
+  const tiers = [
+    { key: 'checkout_completed', label: 'Checkout' },
+    { key: 'render_upsell_completed', label: 'Render' },
+    { key: 'full_upsell_completed', label: 'Full' },
+    { key: 'books_upsell_completed', label: 'Books' },
+    { key: 'books_downsell_completed', label: 'Downsell' },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {tiers.map((tier) => {
+        const completed = log[tier.key as keyof PaymentLog] as boolean;
+        return (
+          <div
+            key={tier.key}
+            className={`w-2.5 h-2.5 rounded-full ${completed ? 'bg-green-500' : 'bg-gray-200'}`}
+            title={`${tier.label}: ${completed ? 'Completed' : 'Not completed'}`}
+          />
+        );
+      })}
+      <span className="text-[10px] text-gray-400 ml-1">
+        {tiers.filter(t => log[t.key as keyof PaymentLog] as boolean).length}/5
+      </span>
+    </div>
+  );
+};
 
 // ─────────────────────────────────────
-// LEAD DETAIL DRAWER
+// PAYMENT DETAIL DRAWER
 // ─────────────────────────────────────
-const LeadDrawer: React.FC<{ lead: Lead; onClose: () => void }> = ({ lead, onClose }) => (
+const PaymentDrawer: React.FC<{ log: PaymentLog; onClose: () => void }> = ({ log, onClose }) => (
   <div className="fixed inset-0 z-50 flex justify-end" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
     <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
       {/* Header */}
-      <div className="bg-slate-900 px-6 py-5 flex items-center justify-between">
+      <div className="bg-black px-6 py-5 flex items-center justify-between">
         <div>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Lead Details</p>
-          <h3 className="text-white font-black text-lg">{lead.name || lead.email}</h3>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Payment Details</p>
+          <h3 className="text-white font-bold text-lg">{log.email}</h3>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
+        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1">
           <X size={20} />
         </button>
       </div>
 
       <div className="p-6 space-y-6 flex-1">
-        {/* Stage */}
+        {/* Payment Info */}
         <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Current Stage</p>
-          <StageBadge stage={lead.stage} />
-        </div>
-
-        {/* Funnel Progress */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Funnel Steps Completed</p>
-          <div className="space-y-2">
-            {Object.entries(STAGES).map(([key, meta]) => {
-              const stageOrder = Object.keys(STAGES);
-              const leadIdx = stageOrder.indexOf(lead.stage);
-              const thisIdx = stageOrder.indexOf(key);
-              const completed = thisIdx <= leadIdx;
-              return (
-                <div key={key} className={`flex items-center gap-3 p-3 rounded-xl border ${completed ? meta.bg : 'bg-slate-50 border-slate-100'}`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${completed ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                    {completed ? <CheckCircle2 size={12} className="text-white" strokeWidth={3} /> : <span className="w-2 h-2 rounded-full bg-slate-400" />}
-                  </div>
-                  <span className={`text-sm font-semibold ${completed ? meta.color : 'text-slate-400'}`}>{meta.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* User Info */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">User Details</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Payment Information</p>
           <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <span className="text-sm text-gray-600">Amount</span>
+              <span className="text-sm font-bold text-black">{fmtMoney(log.amount)}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <span className="text-sm text-gray-600">Status</span>
+              <StatusBadge status={log.status} />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <span className="text-sm text-gray-600">Funnel</span>
+              <FunnelBadge funnel={log.funnel_type} />
+            </div>
+          </div>
+        </div>
+
+        {/* Tier Progress */}
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Tier Completion</p>
+          <div className="space-y-2">
             {[
-              { icon: <Mail size={14} />, label: 'Email', value: lead.email },
-              { icon: <User size={14} />, label: 'Name', value: lead.name || '—' },
-              { icon: <Briefcase size={14} />, label: 'Role', value: lead.role || '—' },
-              { icon: <Phone size={14} />, label: 'Phone', value: lead.whatsapp || '—' },
-            ].map(({ icon, label, value }) => (
-              <div key={label} className="flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-slate-400 mt-0.5 shrink-0">{icon}</span>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{label}</p>
-                  <p className="text-sm text-slate-900 font-semibold">{value}</p>
+              { label: 'Initial Checkout', completed: log.checkout_completed },
+              { label: 'Render Upsell', completed: log.render_upsell_completed },
+              { label: 'Full Upsell', completed: log.full_upsell_completed },
+              { label: 'Books Upsell', completed: log.books_upsell_completed },
+              { label: 'Books Downsell', completed: log.books_downsell_completed },
+            ].map((tier) => (
+              <div key={tier.label} className={`flex items-center gap-3 p-3 rounded-xl border ${tier.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${tier.completed ? 'bg-green-500' : 'bg-gray-200'}`}>
+                  {tier.completed ? <CheckCircle2 size={12} className="text-white" strokeWidth={3} /> : <span className="w-2 h-2 rounded-full bg-gray-400" />}
                 </div>
+                <span className={`text-sm font-semibold ${tier.completed ? 'text-green-800' : 'text-gray-500'}`}>{tier.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Follow-ups */}
-        <div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Follow-up Emails</p>
-          <div className="space-y-2">
-            {[
-              { label: 'Follow-up 1', sent: lead.followup_1_at },
-              { label: 'Follow-up 2', sent: lead.followup_2_at },
-              { label: 'Follow-up 3', sent: lead.followup_3_at },
-            ].map(({ label, sent }) => (
-              <div key={label} className={`flex items-center justify-between p-3 rounded-xl border ${sent ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                <div className="flex items-center gap-2">
-                  {sent
-                    ? <CheckCircle2 size={14} className="text-emerald-600" />
-                    : <Clock size={14} className="text-slate-400" />}
-                  <span className={`text-sm font-semibold ${sent ? 'text-emerald-800' : 'text-slate-500'}`}>{label}</span>
-                </div>
-                <span className="text-xs text-slate-400">{fmtDate(sent)}</span>
-              </div>
-            ))}
-          </div>
+        {/* Total Spent */}
+        <div className="bg-green-500 text-white rounded-2xl p-5">
+          <p className="text-xs font-bold uppercase tracking-widest mb-1 opacity-80">Total Amount Paid</p>
+          <p className="text-3xl font-bold">{fmtMoney(log.total_amount_paid)}</p>
         </div>
+
+        {/* Error Message */}
+        {log.error_message && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle size={16} className="text-red-500" />
+              <p className="text-sm font-bold text-red-700">Error Message</p>
+            </div>
+            <p className="text-sm text-red-600">{log.error_message}</p>
+          </div>
+        )}
 
         {/* Timestamps */}
-        <div className="border-t border-slate-100 pt-4 space-y-1">
-          <p className="text-[11px] text-slate-400"><span className="font-bold">Signed up:</span> {fmtDate(lead.created_at)}</p>
-          <p className="text-[11px] text-slate-400"><span className="font-bold">Last updated:</span> {fmtDate(lead.updated_at)}</p>
-          <p className="text-[11px] text-slate-400"><span className="font-bold">Lead ID:</span> {lead.id}</p>
+        <div className="border-t border-gray-200 pt-4 space-y-1">
+          <p className="text-[11px] text-gray-400"><span className="font-bold">Payment time:</span> {fmtDate(log.created_at)}</p>
+          <p className="text-[11px] text-gray-400"><span className="font-bold">Payment ID:</span> {log.id}</p>
         </div>
       </div>
     </div>
@@ -302,44 +318,41 @@ const LeadDrawer: React.FC<{ lead: Lead; onClose: () => void }> = ({ lead, onClo
 // DASHBOARD
 // ─────────────────────────────────────
 const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [filtered, setFiltered] = useState<Lead[]>([]);
+  const [logs, setLogs] = useState<PaymentLog[]>([]);
+  const [filtered, setFiltered] = useState<PaymentLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [stageFilter, setStageFilter] = useState('all');
-  const [sortField, setSortField] = useState<keyof Lead>('created_at');
+  const [funnelFilter, setFunnelFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortField, setSortField] = useState<keyof PaymentLog>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLog, setSelectedLog] = useState<PaymentLog | null>(null);
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const { data, error: err } = await supabase.rpc('get_leads_secure', { auth_pass: 'Robbin#15' });
+      const { data, error: err } = await supabase.rpc('get_payment_logs_admin', { p_auth_pass: 'Robbin#15' });
       if (err) throw err;
-      setLeads(data ?? []);
+      setLogs(data ?? []);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to load leads');
+      setError(e.message ?? 'Failed to load payment logs');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   // Filter + sort
   useEffect(() => {
-    let rows = [...leads];
-    if (stageFilter !== 'all') rows = rows.filter(l => l.stage === stageFilter);
+    let rows = [...logs];
+    if (funnelFilter !== 'all') rows = rows.filter(l => l.funnel_type === funnelFilter);
+    if (statusFilter !== 'all') rows = rows.filter(l => l.status === statusFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
-      rows = rows.filter(l =>
-        l.email.toLowerCase().includes(q) ||
-        (l.name ?? '').toLowerCase().includes(q) ||
-        (l.whatsapp ?? '').includes(q) ||
-        (l.role ?? '').toLowerCase().includes(q)
-      );
+      rows = rows.filter(l => l.email.toLowerCase().includes(q));
     }
     rows.sort((a, b) => {
       const av = (a[sortField] as string) ?? '';
@@ -347,49 +360,54 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     setFiltered(rows);
-  }, [leads, search, stageFilter, sortField, sortDir]);
+  }, [logs, search, funnelFilter, statusFilter, sortField, sortDir]);
 
-  const toggleSort = (field: keyof Lead) => {
+  const toggleSort = (field: keyof PaymentLog) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('desc'); }
   };
 
   // Stats
-  const statsByStage = Object.keys(STAGES).map(key => ({
-    ...STAGES[key],
-    key,
-    count: leads.filter(l => l.stage === key).length,
-  }));
-  const totalFollowups = leads.reduce((s, l) => s + [l.followup_1_at, l.followup_2_at, l.followup_3_at].filter(Boolean).length, 0);
+  const totalRevenue = logs.filter(l => l.status === 'success').reduce((sum, l) => sum + l.amount, 0);
+  const successCount = logs.filter(l => l.status === 'success').length;
+  const failedCount = logs.filter(l => l.status === 'failed').length;
+  const uniqueUsers = new Set(logs.map(l => l.email)).size;
 
-  const SortIcon: React.FC<{ field: keyof Lead }> = ({ field }) =>
+  const statsByFunnel = Object.keys(FUNNELS).map(key => ({
+    label: FUNNELS[key].label,
+    key,
+    count: logs.filter(l => l.funnel_type === key).length,
+    revenue: logs.filter(l => l.funnel_type === key && l.status === 'success').reduce((sum, l) => sum + l.amount, 0),
+  }));
+
+  const SortIcon: React.FC<{ field: keyof PaymentLog }> = ({ field }) =>
     sortField === field
-      ? sortDir === 'asc' ? <ChevronUp size={13} className="text-orange-500" /> : <ChevronDown size={13} className="text-orange-500" />
-      : <ArrowUpDown size={12} className="text-slate-300" />;
+      ? sortDir === 'asc' ? <ChevronUp size={13} className="text-black" /> : <ChevronDown size={13} className="text-black" />
+      : <ArrowUpDown size={12} className="text-gray-300" />;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* ── Top Bar ── */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-            <Shield size={16} className="text-white" />
+          <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
+            <Shield size={20} className="text-white" />
           </div>
           <div>
-            <p className="text-white font-black text-sm leading-none">Avada Admin</p>
-            <p className="text-slate-500 text-[10px] font-medium">Signups Dashboard</p>
+            <p className="text-black font-bold text-sm leading-none">Payment Admin</p>
+            <p className="text-gray-400 text-[10px] font-medium">Analytics Dashboard</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchLeads}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 transition-colors"
+            onClick={fetchLogs}
+            className="flex items-center gap-1.5 text-gray-500 hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
           <button
             onClick={() => { sessionStorage.removeItem(SESSION_KEY); onLogout(); }}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 hover:border-red-700 transition-colors"
+            className="flex items-center gap-1.5 text-gray-500 hover:text-red-500 text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
           >
             <LogOut size={12} /> Logout
           </button>
@@ -397,24 +415,49 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          <div className="col-span-2 md:col-span-1 bg-slate-900 text-white rounded-2xl p-4 flex flex-col justify-between">
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Signups</p>
-            <p className="text-4xl font-black">{leads.length}</p>
-            <p className="text-slate-500 text-xs mt-1">Follow-ups sent: {totalFollowups}</p>
+        {/* ── Stats Overview ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-black text-white rounded-2xl p-5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign size={18} className="text-white/80" />
+              <p className="text-white/80 text-xs font-bold uppercase tracking-widest">Total Revenue</p>
+            </div>
+            <p className="text-3xl font-bold">{fmtMoney(totalRevenue)}</p>
           </div>
-          {statsByStage.map(s => (
+          <div className="bg-green-500 text-white rounded-2xl p-5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 size={18} />
+              <p className="text-green-100 text-xs font-bold uppercase tracking-widest">Successful</p>
+            </div>
+            <p className="text-3xl font-bold">{successCount}</p>
+          </div>
+          <div className="bg-white border border-gray-200 text-black rounded-2xl p-5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle size={18} className="text-red-500" />
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Failed</p>
+            </div>
+            <p className="text-3xl font-bold">{failedCount}</p>
+          </div>
+          <div className="bg-white border border-gray-200 text-black rounded-2xl p-5 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <Users size={18} className="text-gray-400" />
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Unique Users</p>
+            </div>
+            <p className="text-3xl font-bold">{uniqueUsers}</p>
+          </div>
+        </div>
+
+        {/* ── Funnel Stats ── */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          {statsByFunnel.map(s => (
             <button
               key={s.key}
-              onClick={() => setStageFilter(stageFilter === s.key ? 'all' : s.key)}
-              className={`rounded-2xl p-4 border text-left transition-all hover:shadow-md ${stageFilter === s.key ? s.bg + ' ring-2 ring-offset-1 ring-orange-400' : 'bg-white border-slate-200'}`}
+              onClick={() => setFunnelFilter(funnelFilter === s.key ? 'all' : s.key)}
+              className={`rounded-2xl p-4 border text-left transition-all hover:shadow-md ${funnelFilter === s.key ? 'bg-black text-white border-black' : 'bg-white border-gray-200 text-black'}`}
             >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                <p className={`text-[10px] font-bold uppercase tracking-widest ${stageFilter === s.key ? s.color : 'text-slate-500'}`}>{s.label}</p>
-              </div>
-              <p className={`text-2xl font-black ${stageFilter === s.key ? s.color : 'text-slate-900'}`}>{s.count}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-gray-400">{s.label}</p>
+              <p className="text-xl font-bold">{s.count}</p>
+              <p className="text-[10px] text-gray-400">{fmtMoney(s.revenue)}</p>
             </button>
           ))}
         </div>
@@ -422,26 +465,34 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         {/* ── Filters ── */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, email, phone or role…"
+              placeholder="Search by email…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-400 transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-black placeholder-gray-400 focus:outline-none focus:border-black transition-colors"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black">
                 <X size={14} />
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
-            <Users size={14} />
-            <span>{filtered.length} lead{filtered.length !== 1 ? 's' : ''}</span>
-            {stageFilter !== 'all' && (
-              <button onClick={() => setStageFilter('all')} className="text-orange-500 hover:text-orange-700 font-bold flex items-center gap-1">
-                <X size={12} /> Clear filter
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-black focus:outline-none focus:border-black transition-colors"
+            >
+              <option value="all">All Status</option>
+              <option value="success">Success</option>
+              <option value="failed">Failed</option>
+              <option value="pending">Pending</option>
+            </select>
+            {(funnelFilter !== 'all' || statusFilter !== 'all') && (
+              <button onClick={() => { setFunnelFilter('all'); setStatusFilter('all'); }} className="text-black hover:text-gray-600 font-bold flex items-center gap-1 text-sm">
+                <X size={12} /> Clear filters
               </button>
             )}
           </div>
@@ -455,35 +506,35 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         )}
 
         {/* ── Table ── */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {loading ? (
-            <div className="py-24 flex flex-col items-center gap-4 text-slate-400">
-              <RefreshCw size={28} className="animate-spin text-orange-400" />
-              <p className="text-sm font-medium">Loading leads…</p>
+            <div className="py-24 flex flex-col items-center gap-4 text-gray-400">
+              <RefreshCw size={28} className="animate-spin text-black" />
+              <p className="text-sm font-medium">Loading payment logs…</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-24 text-center">
-              <Users size={36} className="mx-auto text-slate-200 mb-3" />
-              <p className="text-slate-400 font-semibold">No leads found</p>
-              <p className="text-slate-300 text-sm">Try changing your search or filter</p>
+              <DollarSign size={36} className="mx-auto text-gray-200 mb-3" />
+              <p className="text-gray-400 font-semibold">No payment logs found</p>
+              <p className="text-gray-300 text-sm">Try changing your search or filter</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
+                  <tr className="border-b border-gray-100 bg-gray-50">
                     {[
-                      { label: 'Name / Email', field: 'email' as keyof Lead },
-                      { label: 'Role', field: 'role' as keyof Lead },
-                      { label: 'Phone', field: 'whatsapp' as keyof Lead },
-                      { label: 'Stage', field: 'stage' as keyof Lead },
-                      { label: 'Follow-ups', field: null },
-                      { label: 'Signed Up', field: 'created_at' as keyof Lead },
+                      { label: 'Email', field: 'email' as keyof PaymentLog },
+                      { label: 'Funnel', field: 'funnel_type' as keyof PaymentLog },
+                      { label: 'Status', field: 'status' as keyof PaymentLog },
+                      { label: 'Amount', field: 'amount' as keyof PaymentLog },
+                      { label: 'Tiers', field: null },
+                      { label: 'Time', field: 'created_at' as keyof PaymentLog },
                     ].map(({ label, field }) => (
                       <th
                         key={label}
                         onClick={field ? () => toggleSort(field) : undefined}
-                        className={`text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap ${field ? 'cursor-pointer hover:text-slate-700 select-none' : ''}`}
+                        className={`text-left px-5 py-3 text-[11px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap ${field ? 'cursor-pointer hover:text-black select-none' : ''}`}
                       >
                         <span className="flex items-center gap-1">
                           {label}
@@ -494,42 +545,34 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filtered.map(lead => (
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map(log => (
                     <tr
-                      key={lead.id}
-                      onClick={() => setSelectedLead(lead)}
-                      className="hover:bg-orange-50/40 transition-colors cursor-pointer group"
+                      key={log.id}
+                      onClick={() => setSelectedLog(log)}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer group"
                     >
-                      {/* Name / Email */}
                       <td className="px-5 py-4">
-                        <p className="font-bold text-slate-900 text-sm">{lead.name || <span className="text-slate-400 font-normal italic">No name</span>}</p>
-                        <p className="text-slate-400 text-xs">{lead.email}</p>
+                        <p className="font-bold text-black text-sm">{log.email}</p>
                       </td>
-                      {/* Role */}
                       <td className="px-5 py-4">
-                        {lead.role ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-                            <Briefcase size={10} /> {lead.role}
-                          </span>
-                        ) : <span className="text-slate-300 text-xs">—</span>}
+                        <FunnelBadge funnel={log.funnel_type} />
                       </td>
-                      {/* Phone */}
-                      <td className="px-5 py-4 text-slate-600 text-xs">{lead.whatsapp || <span className="text-slate-300">—</span>}</td>
-                      {/* Stage */}
-                      <td className="px-5 py-4"><StageBadge stage={lead.stage} /></td>
-                      {/* Follow-ups */}
                       <td className="px-5 py-4">
-                        <FollowupDots f1={lead.followup_1_at} f2={lead.followup_2_at} f3={lead.followup_3_at} />
+                        <StatusBadge status={log.status} />
                       </td>
-                      {/* Date */}
-                      <td className="px-5 py-4">
-                        <p className="text-slate-600 text-xs">{fmtDate(lead.created_at)}</p>
-                        <p className="text-slate-400 text-[10px]">{fmtTimeAgo(lead.created_at)}</p>
+                      <td className="px-5 py-4 font-bold text-black">
+                        {fmtMoney(log.amount)}
                       </td>
-                      {/* Arrow */}
                       <td className="px-5 py-4">
-                        <ChevronDown size={14} className="text-slate-300 group-hover:text-orange-400 -rotate-90 transition-colors" />
+                        <TierStatus log={log} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-gray-600 text-xs">{fmtDate(log.created_at)}</p>
+                        <p className="text-gray-400 text-[10px]">{fmtTimeAgo(log.created_at)}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <ChevronDown size={14} className="text-gray-300 group-hover:text-black -rotate-90 transition-colors" />
                       </td>
                     </tr>
                   ))}
@@ -539,13 +582,13 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           )}
         </div>
 
-        <p className="text-center text-[11px] text-slate-300 mt-6 font-medium">
-          Avada Design Admin · {leads.length} total leads · Last refreshed {new Date().toLocaleTimeString()}
+        <p className="text-center text-[11px] text-gray-300 mt-6 font-medium">
+          Payment Analytics · {logs.length} total transactions · Last refreshed {new Date().toLocaleTimeString()}
         </p>
       </div>
 
-      {/* Lead Drawer */}
-      {selectedLead && <LeadDrawer lead={selectedLead} onClose={() => setSelectedLead(null)} />}
+      {/* Payment Drawer */}
+      {selectedLog && <PaymentDrawer log={selectedLog} onClose={() => setSelectedLog(null)} />}
     </div>
   );
 };

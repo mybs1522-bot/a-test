@@ -7,6 +7,7 @@ import { chargeSavedCardUpsell } from "../services/stripe";
 import { sendStageEmail } from "../services/email";
 import FunnelProgressBar from "../components/FunnelProgressBar";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { logPaymentSuccess, logPaymentFailure } from "../services/payment-logging";
 
 const RenderUpsellPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,10 +45,23 @@ const RenderUpsellPage: React.FC = () => {
 
   const f = (v: number) => v.toString().padStart(2, "0");
 
-  const handleSuccess = (newCustomerId?: string, newPaymentMethodId?: string) => {
+  const handleSuccess = async (newCustomerId?: string, newPaymentMethodId?: string) => {
+    // Log successful payment
+    await logPaymentSuccess(email, 'render-upsell', FRONT_END_PRICE, {
+      customer_id: newCustomerId ?? customerId,
+      payment_method_id: newPaymentMethodId ?? paymentMethodId,
+    });
+
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: FRONT_END_PRICE, currency: "USD" });
     sendStageEmail(email, 'render');
     navigate("/onetime", { state: { customerId: newCustomerId ?? customerId, paymentMethodId: newPaymentMethodId ?? paymentMethodId, email, purchased: ['render'] } });
+  };
+
+  const handleError = async (error: any) => {
+    console.error('[RenderUpsellPage] Payment failed:', error);
+    
+    // Log failed payment
+    await logPaymentFailure(email, 'render-upsell', FRONT_END_PRICE, error.message || 'Payment failed');
   };
 
   const handleSkip = () => {
@@ -136,7 +150,7 @@ const RenderUpsellPage: React.FC = () => {
             <input type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-orange-500 transition-all" />
           </div>
-          <ModernPaymentForm bare email={email} onSuccess={handleSuccess} amount={`$${FRONT_END_PRICE}`} />
+          <ModernPaymentForm bare email={email} onSuccess={handleSuccess} onError={handleError} amount={`$${FRONT_END_PRICE}`} />
           <button onClick={() => setShowPayment(false)} className="w-full mt-3 py-2 text-center text-gray-400 hover:text-gray-600 text-xs font-medium transition-colors">← Go back</button>
         </div>
       )}

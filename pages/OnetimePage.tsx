@@ -7,6 +7,7 @@ import { chargeSavedCardUpsell } from "../services/stripe";
 import { sendStageEmail } from "../services/email";
 import FunnelProgressBar from "../components/FunnelProgressBar";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { logPaymentSuccess, logPaymentFailure } from "../services/payment-logging";
 
 const OnetimePage: React.FC = () => {
   const navigate = useNavigate();
@@ -48,10 +49,24 @@ const OnetimePage: React.FC = () => {
 
   const f = (v: number) => v.toString().padStart(2, "0");
 
-  const handleSuccess = (newCustomerId?: string, newPaymentMethodId?: string) => {
+  const handleSuccess = async (newCustomerId?: string, newPaymentMethodId?: string) => {
+    // Log successful payment
+    await logPaymentSuccess(email, 'full-upsell', UPSELL_PRICE, {
+      customer_id: newCustomerId ?? customerId,
+      payment_method_id: newPaymentMethodId ?? paymentMethodId,
+      payment_intent_id: paymentIntentId,
+    });
+
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: UPSELL_PRICE, currency: "USD" });
     sendStageEmail(email, 'full');
     navigate("/offer", { state: { customerId: newCustomerId ?? customerId, paymentMethodId: newPaymentMethodId ?? paymentMethodId, paymentIntentId, email, purchased: [...prevPurchased, 'full'] } });
+  };
+
+  const handleError = async (error: any) => {
+    console.error('[OnetimePage] Payment failed:', error);
+    
+    // Log failed payment
+    await logPaymentFailure(email, 'full-upsell', UPSELL_PRICE, error.message || 'Payment failed');
   };
 
   const handleSkip = () => {
@@ -368,7 +383,7 @@ const OnetimePage: React.FC = () => {
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:outline-none transition-all"
               />
             </div>
-            <ModernPaymentForm bare email={email} onSuccess={handleSuccess} amount={`$${UPSELL_PRICE}`} />
+            <ModernPaymentForm bare email={email} onSuccess={handleSuccess} onError={handleError} amount={`$${UPSELL_PRICE}`} />
           </div>
         </div>
       )}
