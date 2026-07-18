@@ -36,12 +36,18 @@ const CheckoutPage: React.FC = () => {
   const handleSuccess = async (customerId?: string, paymentMethodId?: string, paymentIntentId?: string) => {
     console.log('[CheckoutPage] Payment succeeded. customerId:', customerId, 'paymentMethodId:', paymentMethodId, 'paymentIntentId:', paymentIntentId);
     
-    // Log successful payment
-    await logPaymentSuccess(email, 'checkout', FRONT_END_PRICE, {
-      payment_intent_id: paymentIntentId,
-      payment_method_id: paymentMethodId,
-      customer_id: customerId,
-    });
+    // Log successful payment - ensure this completes before navigation
+    try {
+      await logPaymentSuccess(email, 'checkout', FRONT_END_PRICE, {
+        payment_intent_id: paymentIntentId,
+        payment_method_id: paymentMethodId,
+        customer_id: customerId,
+      });
+      console.log('[CheckoutPage] Payment logged successfully');
+    } catch (logError) {
+      console.error('[CheckoutPage] Failed to log payment:', logError);
+      // Continue anyway - don't block the user for logging errors
+    }
     
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: FRONT_END_PRICE, currency: "USD" });
     sendStageEmail(email, 'render');

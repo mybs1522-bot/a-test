@@ -50,12 +50,18 @@ const OnetimePage: React.FC = () => {
   const f = (v: number) => v.toString().padStart(2, "0");
 
   const handleSuccess = async (newCustomerId?: string, newPaymentMethodId?: string) => {
-    // Log successful payment
-    await logPaymentSuccess(email, 'full-upsell', UPSELL_PRICE, {
-      customer_id: newCustomerId ?? customerId,
-      payment_method_id: newPaymentMethodId ?? paymentMethodId,
-      payment_intent_id: paymentIntentId,
-    });
+    // Log successful payment - ensure this completes before navigation
+    try {
+      await logPaymentSuccess(email, 'full-upsell', UPSELL_PRICE, {
+        customer_id: newCustomerId ?? customerId,
+        payment_method_id: newPaymentMethodId ?? paymentMethodId,
+        payment_intent_id: paymentIntentId,
+      });
+      console.log('[OnetimePage] Payment logged successfully');
+    } catch (logError) {
+      console.error('[OnetimePage] Failed to log payment:', logError);
+      // Continue anyway - don't block the user for logging errors
+    }
 
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: UPSELL_PRICE, currency: "USD" });
     sendStageEmail(email, 'full');

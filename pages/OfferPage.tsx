@@ -54,12 +54,18 @@ const OfferPage: React.FC = () => {
     const amount = productMode === 'downsell' ? DOWNSELL_BOOKS_PRICE : UPSELL2_PRICE;
     const funnelType = productMode === 'downsell' ? 'books-downsell' : 'books-upsell';
     
-    // Log successful payment
-    await logPaymentSuccess(email, funnelType, amount, {
-      customer_id: customerId,
-      payment_method_id: paymentMethodId,
-      payment_intent_id: paymentIntentId,
-    });
+    // Log successful payment - ensure this completes before navigation
+    try {
+      await logPaymentSuccess(email, funnelType, amount, {
+        customer_id: customerId,
+        payment_method_id: paymentMethodId,
+        payment_intent_id: paymentIntentId,
+      });
+      console.log('[OfferPage] Payment logged successfully');
+    } catch (logError) {
+      console.error('[OfferPage] Failed to log payment:', logError);
+      // Continue anyway - don't block the user for logging errors
+    }
 
     if ((window as any).fbq) (window as any).fbq("track", "Purchase", { value: amount, currency: "USD" });
     sendStageEmail(email, productMode);

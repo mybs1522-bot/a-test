@@ -1,13 +1,13 @@
 import { loadStripe } from '@stripe/stripe-js';
 
-const SUPABASE_URL = 'https://aexrgtpxyzfxjecozstf.supabase.co';
+const SUPABASE_URL = 'https://hsxwsqfrjfbqlbjlrnpz.supabase.co';
 const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleHJndHB4eXpmeGplY296c3RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTY0MjcsImV4cCI6MjA4Nzg3MjQyN30._ZSmh9iTP3etyGj5XrkEGJtRp9kR8z6jAmLOMesIvkg';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzeHdzcWZyamZicWxiamxybnB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMDI5NTAsImV4cCI6MjA5OTc3ODk1MH0.iEgGWAMeT9zh5c0_kZkjmI9fQdTJjTucJX5uX047kEE';
 
 export const FALLBACK_STRIPE_LINK = '';
 
 export const stripePromise = loadStripe(
-  'pk_live_51PRJCsGGsoQTkhyv6OrT4zvnaaB5Y0MSSkTXi0ytj33oygsfW3dcu6aOFa9q3dr2mXYTCJErnFQJcOcyuDAsQd4B00lIAdclbB'
+  'pk_live_51TtYmw2RSOIefexKaPv0P5OSult8LJATs1S4Oa5gVorreuDxdwBDtFIqIevsHFeEHyWEb2aTk4Z7Uqmi4jNM3p5i00AsRU3IKA'
 );
 
 export const createPaymentIntent = async (email: string, amount: string = '$9'): Promise<{clientSecret: string, customerId: string}> => {

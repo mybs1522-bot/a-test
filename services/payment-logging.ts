@@ -15,6 +15,8 @@ export interface PaymentLogData {
 
 export async function logPayment(data: PaymentLogData): Promise<void> {
   try {
+    console.log('[Payment Logging] Attempting to log payment:', data);
+    
     const { error } = await supabase.from('payment_logs').insert({
       email: data.email,
       funnel_type: data.funnel_type,
@@ -29,10 +31,13 @@ export async function logPayment(data: PaymentLogData): Promise<void> {
     });
 
     if (error) {
-      console.error('Failed to log payment:', error);
+      console.error('[Payment Logging] Failed to log payment:', error);
+      console.error('[Payment Logging] Error details:', JSON.stringify(error, null, 2));
+    } else {
+      console.log('[Payment Logging] Successfully logged payment');
     }
   } catch (error) {
-    console.error('Error logging payment:', error);
+    console.error('[Payment Logging] Error logging payment:', error);
   }
 }
 
