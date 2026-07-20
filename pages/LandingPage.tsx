@@ -185,29 +185,6 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* ═══════ AFTER COURSE YOU CAN ═══════ */}
-        <section className="py-10 md:py-14 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-3xl mx-auto px-4">
-            <h2 className="text-2xl md:text-3xl font-display font-black text-slate-800 text-center mb-6">After Course You Can</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white border-2 border-yellow-300 rounded-2xl px-5 py-5 flex items-start gap-3">
-                <span className="text-2xl">💼</span>
-                <div>
-                  <p className="text-base font-bold text-slate-900">Get a Better Job</p>
-                  <p className="text-sm text-slate-500">Higher-paying design roles</p>
-                </div>
-              </div>
-              <div className="bg-white border-2 border-yellow-300 rounded-2xl px-5 py-5 flex items-start gap-3">
-                <span className="text-2xl">🏢</span>
-                <div>
-                  <p className="text-base font-bold text-slate-900">Own Design Firm</p>
-                  <p className="text-sm text-slate-500">Freelance & studio projects</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ═══════ COURSE SLIDESHOW — Master Every Tool (Replaced with Custom Designed Pipeline Banner) ═══════ */}
         <section className="py-8 md:py-16 bg-white border-b border-gray-100 overflow-hidden relative">
           <div className="max-w-5xl mx-auto px-4 md:px-6">
