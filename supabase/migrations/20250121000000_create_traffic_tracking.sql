@@ -59,7 +59,11 @@ RETURNS TABLE (
   referrer_stats JSONB,
   device_type_stats JSONB,
   recent_visits JSONB
-) AS $$
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
   IF p_auth_pass != 'Robbin#15' THEN
     RAISE EXCEPTION 'Unauthorized';
@@ -108,11 +112,15 @@ BEGIN
        LIMIT 50
      ) t) as recent_visits;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Function to update session on exit
 CREATE OR REPLACE FUNCTION update_session_on_exit(p_session_id TEXT)
-RETURNS VOID AS $$
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
   UPDATE page_visits
   SET 
@@ -121,7 +129,7 @@ BEGIN
     updated_at = NOW()
   WHERE session_id = p_session_id AND exited_at IS NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Function to get live sessions (currently active)
 CREATE OR REPLACE FUNCTION get_live_sessions_admin(p_auth_pass TEXT)
@@ -134,7 +142,11 @@ RETURNS TABLE (
   entered_at TIMESTAMP WITH TIME ZONE,
   session_duration_seconds INTEGER,
   page_views INTEGER
-) AS $$
+)
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
   IF p_auth_pass != 'Robbin#15' THEN
     RAISE EXCEPTION 'Unauthorized';
@@ -154,4 +166,4 @@ BEGIN
   WHERE exited_at IS NULL
   ORDER BY session_id, entered_at DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$;
