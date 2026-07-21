@@ -319,6 +319,7 @@ const PaymentDrawer: React.FC<{ log: PaymentLog; onClose: () => void }> = ({ log
 // DASHBOARD
 // ─────────────────────────────────────
 const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const [activeTab, setActiveTab] = useState<'payments' | 'traffic'>('payments');
   const [logs, setLogs] = useState<PaymentLog[]>([]);
   const [filtered, setFiltered] = useState<PaymentLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -446,7 +447,36 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         </div>
       </header>
 
+      {/* ── Tabs ── */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6">
+        <div className="flex gap-2 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
+              activeTab === 'payments'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Payments
+          </button>
+          <button
+            onClick={() => setActiveTab('traffic')}
+            className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
+              activeTab === 'traffic'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Traffic
+          </button>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+        {/* ── Payments Tab ── */}
+        {activeTab === 'payments' && (
+          <>
         {/* ── Stats Overview ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-black text-white rounded-2xl p-5 flex flex-col justify-between">
@@ -768,6 +798,164 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         <p className="text-center text-[11px] text-gray-300 mt-6 font-medium">
           Payment Analytics · {logs.length} total transactions · Last refreshed {new Date().toLocaleTimeString()}
         </p>
+        </>
+        )}
+
+        {/* ── Traffic Tab ── */}
+        {activeTab === 'traffic' && (
+          <>
+        {/* ── Traffic Analytics ── */}
+        {!loadingTraffic && trafficStats && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                <Globe size={18} className="text-gray-400" />
+                Traffic Analytics
+              </h2>
+              <button
+                onClick={fetchTrafficStats}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+              >
+                <RefreshCw size={12} className={loadingTraffic ? 'animate-spin' : ''} /> Refresh
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Visits</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.total_visits || 0}</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Unique Sessions</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.unique_sessions || 0}</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Avg Session Time</p>
+                <p className="text-2xl font-bold text-black">
+                  {Math.round(trafficStats.avg_session_duration_seconds || 0)}s
+                </p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Page Views</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.total_page_views || 0}</p>
+              </div>
+            </div>
+
+            {/* Traffic Sources */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* UTM Sources */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Globe size={14} /> Traffic Sources
+                </p>
+                <div className="space-y-2">
+                  {trafficStats.utm_source_stats && Object.keys(trafficStats.utm_source_stats).length > 0 ? (
+                    Object.entries(trafficStats.utm_source_stats).map(([source, count]) => (
+                      <div key={source} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{source}</span>
+                        <span className="font-bold text-black">{count as number}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No UTM source data yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Referrers */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Globe size={14} /> Top Referrers
+                </p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {trafficStats.referrer_stats && Object.keys(trafficStats.referrer_stats).length > 0 ? (
+                    Object.entries(trafficStats.referrer_stats)
+                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .slice(0, 5)
+                      .map(([referrer, count]) => (
+                        <div key={referrer} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 truncate max-w-[120px]" title={referrer}>{referrer}</span>
+                          <span className="font-bold text-black">{count as number}</span>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No referrer data yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Device Types */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Monitor size={14} /> Device Types
+                </p>
+                <div className="space-y-2">
+                  {trafficStats.device_type_stats && Object.keys(trafficStats.device_type_stats).length > 0 ? (
+                    Object.entries(trafficStats.device_type_stats).map(([device, count]) => (
+                      <div key={device} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 capitalize flex items-center gap-2">
+                          {device === 'mobile' && <Smartphone size={14} />}
+                          {device === 'desktop' && <Monitor size={14} />}
+                          {device}
+                        </span>
+                        <span className="font-bold text-black">{count as number}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No device data yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Live Sessions ── */}
+        {liveSessions.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                <Timer size={18} className="text-green-500" />
+                Live Sessions ({liveSessions.length})
+              </h2>
+              <button
+                onClick={fetchLiveSessions}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+              >
+                <RefreshCw size={12} /> Refresh
+              </button>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="max-h-64 overflow-y-auto">
+                {liveSessions.map((session, idx) => (
+                  <div key={session.session_id} className={`flex items-center justify-between px-4 py-3 ${idx !== liveSessions.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${session.device_type === 'mobile' ? 'bg-blue-500' : session.device_type === 'tablet' ? 'bg-purple-500' : 'bg-green-500'}`} />
+                      <div>
+                        <p className="text-sm font-medium text-black">{session.url}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="capitalize flex items-center gap-1">
+                            {session.device_type === 'mobile' && <Smartphone size={10} />}
+                            {session.device_type === 'desktop' && <Monitor size={10} />}
+                            {session.device_type}
+                          </span>
+                          {session.utm_source && <span>• {session.utm_source}</span>}
+                          {session.referrer && <span>• {session.referrer}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-black">{Math.floor(session.session_duration_seconds / 60)}m {session.session_duration_seconds % 60}s</p>
+                      <p className="text-xs text-gray-400">{session.page_views} page{session.page_views !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        </>
+        )}
       </div>
 
       {/* Payment Drawer */}
