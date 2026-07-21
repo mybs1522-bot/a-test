@@ -452,23 +452,23 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         <div className="flex gap-2 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('payments')}
-            className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
               activeTab === 'payments'
                 ? 'border-black text-black'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            Payments
+            <DollarSign size={16} /> Payments
           </button>
           <button
             onClick={() => setActiveTab('traffic')}
-            className={`px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${
               activeTab === 'traffic'
                 ? 'border-black text-black'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            Traffic
+            <Globe size={16} /> Traffic
           </button>
         </div>
       </div>
