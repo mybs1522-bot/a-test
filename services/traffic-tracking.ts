@@ -156,8 +156,29 @@ export async function getTrafficStats(): Promise<any> {
   }
 }
 
+// Get live sessions from admin
+export async function getLiveSessions(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_live_sessions_admin', {
+      p_auth_pass: 'Robbin#15',
+    });
+
+    if (error) {
+      console.error('[Traffic Tracking] Failed to get live sessions:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('[Traffic Tracking] Failed to get live sessions:', error);
+    return [];
+  }
+}
+
 // Initialize tracking
 export function initTrafficTracking(): void {
+  console.log('[Traffic Tracking] Initializing...');
+  
   // Track initial page load
   trackPageVisit(window.location.pathname);
 
@@ -175,18 +196,17 @@ export function initTrafficTracking(): void {
     setTimeout(() => trackPageVisit(window.location.pathname), 100);
   };
 
-  // Track session exit on page unload
-  window.addEventListener('beforeunload', () => {
-    // Use sendBeacon for reliable tracking on page unload
-    const sessionId = getSessionId();
-    const data = JSON.stringify({ session_id: sessionId });
-    navigator.sendBeacon('/api/track-exit', data);
-  });
-
-  // Also track visibility change (tab switch/close)
+  // Track visibility change (tab switch/close) - more reliable than beforeunload
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      console.log('[Traffic Tracking] Visibility hidden, tracking session exit');
       trackSessionExit();
     }
+  });
+
+  // Also track page unload as backup
+  window.addEventListener('beforeunload', () => {
+    console.log('[Traffic Tracking] Page unloading, tracking session exit');
+    trackSessionExit();
   });
 }

@@ -122,3 +122,36 @@ BEGIN
   WHERE session_id = p_session_id AND exited_at IS NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to get live sessions (currently active)
+CREATE OR REPLACE FUNCTION get_live_sessions_admin(p_auth_pass TEXT)
+RETURNS TABLE (
+  session_id TEXT,
+  url TEXT,
+  utm_source TEXT,
+  referrer TEXT,
+  device_type TEXT,
+  entered_at TIMESTAMP WITH TIME ZONE,
+  session_duration_seconds INTEGER,
+  page_views INTEGER
+) AS $$
+BEGIN
+  IF p_auth_pass != 'Robbin#15' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+  
+  RETURN QUERY
+  SELECT DISTINCT ON (session_id)
+    session_id,
+    url,
+    utm_source,
+    referrer,
+    device_type,
+    entered_at,
+    EXTRACT(EPOCH FROM (NOW() - entered_at))::INTEGER as session_duration_seconds,
+    page_views
+  FROM page_visits
+  WHERE exited_at IS NULL
+  ORDER BY session_id, entered_at DESC;
+END;
+$$ LANGUAGE plpgsql;

@@ -7,6 +7,7 @@ import OfferPage from './pages/OfferPage';
 import RenderUpsellPage from './pages/RenderUpsellPage';
 import AdminPage from './pages/AdminPage';
 import ThankYouPage from './pages/ThankYouPage';
+import { initTrafficTracking } from './services/traffic-tracking';
 
 const App: React.FC = () => {
   const { pathname } = useLocation();
@@ -14,6 +15,11 @@ const App: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+
+  // Initialize traffic tracking globally
+  useEffect(() => {
+    initTrafficTracking();
+  }, []);
 
   return (
     <Routes>

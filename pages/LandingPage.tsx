@@ -4,7 +4,6 @@ import { ArrowRight, Star, CheckCircle, CheckCircle2, X, ChevronDown, Sparkles, 
 import { FRONT_END_PRICE, FRONT_END_ORIGINAL_PRICE } from '../constants';
 import { useCurrency } from '../contexts/CurrencyContext';
 import TeamSection from '../components/ui/team';
-import { initTrafficTracking } from '../services/traffic-tracking';
 import {
   Logo, SocialProofToast,
   PROBLEM_POINTS, TRANSFORMATION_STORIES, FEAR_STATS,
@@ -85,7 +84,6 @@ const LandingPage: React.FC = () => {
   useEffect(() => { 
     window.scrollTo(0, 0); 
     if ((window as any).fbq) (window as any).fbq('track', 'ViewContent', { content_name: 'Avada Design — SketchUp + V-Ray + D5 Render AI', value: FRONT_END_PRICE, currency: 'USD' });
-    initTrafficTracking();
   }, []);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [studentCount, setStudentCount] = useState(22390);
