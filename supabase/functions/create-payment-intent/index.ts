@@ -82,7 +82,6 @@ serve(async (req: Request) => {
       description: 'Avada Design - Online Course Bundle',
       'metadata[product]': 'Avada Design Bundle',
       'metadata[email]': email || '',
-      payment_method_configuration: 'pmc_1TVz0fGGsoQTkhyve6oTQ6jG',
     };
     if (customerId) piParams.customer = customerId;
     if (email) piParams.receipt_email = email;
