@@ -4,6 +4,7 @@ import { ArrowRight, Star, CheckCircle, CheckCircle2, X, ChevronDown, Sparkles, 
 import { FRONT_END_PRICE, FRONT_END_ORIGINAL_PRICE } from '../constants';
 import { useCurrency } from '../contexts/CurrencyContext';
 import TeamSection from '../components/ui/team';
+import { initTrafficTracking } from '../services/traffic-tracking';
 import {
   Logo, SocialProofToast,
   PROBLEM_POINTS, TRANSFORMATION_STORIES, FEAR_STATS,
@@ -81,7 +82,11 @@ const LandingPage: React.FC = () => {
 
   const [timeLeft, setTimeLeft] = useState(() => { const D = (3 * 3600 + 36 * 60 + 20) * 1000, r = D - (Date.now() % D); return { h: Math.floor((r / 3600000) % 24), m: Math.floor((r / 60000) % 60), s: Math.floor((r / 1000) % 60) }; });
   const [showStickyBar, setShowStickyBar] = useState(false);
-  useEffect(() => { window.scrollTo(0, 0); if ((window as any).fbq) (window as any).fbq('track', 'ViewContent', { content_name: 'Avada Design — SketchUp + V-Ray + D5 Render AI', value: FRONT_END_PRICE, currency: 'USD' }); }, []);
+  useEffect(() => { 
+    window.scrollTo(0, 0); 
+    if ((window as any).fbq) (window as any).fbq('track', 'ViewContent', { content_name: 'Avada Design — SketchUp + V-Ray + D5 Render AI', value: FRONT_END_PRICE, currency: 'USD' });
+    initTrafficTracking();
+  }, []);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [studentCount, setStudentCount] = useState(22390);
 

@@ -3,9 +3,10 @@ import {
   Lock, LogOut, RefreshCw, Search, ChevronDown, ChevronUp,
   CheckCircle2, Clock, Mail, ArrowUpDown, X,
   Shield, Eye, EyeOff, DollarSign, TrendingUp, AlertCircle,
-  Users,
+  Users, Globe, Monitor, Smartphone, Timer,
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { getTrafficStats } from '../services/traffic-tracking';
 
 // ── Auth ──
 const ADMIN_USER = 'adminrob';
@@ -328,6 +329,8 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [sortField, setSortField] = useState<keyof PaymentLog>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedLog, setSelectedLog] = useState<PaymentLog | null>(null);
+  const [trafficStats, setTrafficStats] = useState<any>(null);
+  const [loadingTraffic, setLoadingTraffic] = useState(true);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -343,7 +346,19 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     }
   }, []);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  const fetchTrafficStats = useCallback(async () => {
+    setLoadingTraffic(true);
+    try {
+      const stats = await getTrafficStats();
+      setTrafficStats(stats);
+    } catch (e: any) {
+      console.error('Failed to load traffic stats:', e);
+    } finally {
+      setLoadingTraffic(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchLogs(); fetchTrafficStats(); }, [fetchLogs, fetchTrafficStats]);
 
   // Filter + sort
   useEffect(() => {
@@ -446,6 +461,112 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             <p className="text-3xl font-bold">{uniqueUsers}</p>
           </div>
         </div>
+
+        {/* ── Traffic Stats ── */}
+        {!loadingTraffic && trafficStats && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                <Globe size={18} className="text-gray-400" />
+                Traffic Analytics
+              </h2>
+              <button
+                onClick={fetchTrafficStats}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-black text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+              >
+                <RefreshCw size={12} className={loadingTraffic ? 'animate-spin' : ''} /> Refresh
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Visits</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.total_visits || 0}</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Unique Sessions</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.unique_sessions || 0}</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Avg Session Time</p>
+                <p className="text-2xl font-bold text-black">
+                  {Math.round(trafficStats.avg_session_duration_seconds || 0)}s
+                </p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Page Views</p>
+                <p className="text-2xl font-bold text-black">{trafficStats.total_page_views || 0}</p>
+              </div>
+            </div>
+
+            {/* Traffic Sources */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* UTM Sources */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Globe size={14} /> Traffic Sources
+                </p>
+                <div className="space-y-2">
+                  {trafficStats.utm_source_stats && Object.keys(trafficStats.utm_source_stats).length > 0 ? (
+                    Object.entries(trafficStats.utm_source_stats).map(([source, count]) => (
+                      <div key={source} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{source}</span>
+                        <span className="font-bold text-black">{count as number}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No UTM source data yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Referrers */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Globe size={14} /> Top Referrers
+                </p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {trafficStats.referrer_stats && Object.keys(trafficStats.referrer_stats).length > 0 ? (
+                    Object.entries(trafficStats.referrer_stats)
+                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .slice(0, 5)
+                      .map(([referrer, count]) => (
+                        <div key={referrer} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 truncate max-w-[120px]" title={referrer}>{referrer}</span>
+                          <span className="font-bold text-black">{count as number}</span>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No referrer data yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Device Types */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
+                  <Monitor size={14} /> Device Types
+                </p>
+                <div className="space-y-2">
+                  {trafficStats.device_type_stats && Object.keys(trafficStats.device_type_stats).length > 0 ? (
+                    Object.entries(trafficStats.device_type_stats).map(([device, count]) => (
+                      <div key={device} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 capitalize flex items-center gap-2">
+                          {device === 'mobile' && <Smartphone size={14} />}
+                          {device === 'desktop' && <Monitor size={14} />}
+                          {device}
+                        </span>
+                        <span className="font-bold text-black">{count as number}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No device data yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Funnel Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
