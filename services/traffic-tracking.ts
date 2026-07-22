@@ -138,10 +138,12 @@ export async function trackSessionExit(): Promise<void> {
 }
 
 // Get traffic stats from admin
-export async function getTrafficStats(): Promise<any> {
+export async function getTrafficStats(startDate?: string, endDate?: string): Promise<any> {
   try {
     const { data, error } = await supabase.rpc('get_traffic_stats_admin', {
       p_auth_pass: 'Robbin#15',
+      p_start_date: startDate || null,
+      p_end_date: endDate || null,
     });
 
     if (error) {

@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_page_visits_entered_at ON page_visits(entered_at 
 CREATE INDEX IF NOT EXISTS idx_page_visits_utm_source ON page_visits(utm_source);
 
 -- Function to get traffic stats for admin
-CREATE OR REPLACE FUNCTION get_traffic_stats_admin(p_auth_pass TEXT)
+CREATE OR REPLACE FUNCTION get_traffic_stats_admin(p_auth_pass TEXT, p_start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL, p_end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL)
 RETURNS TABLE (
   total_visits BIGINT,
   unique_sessions BIGINT,
@@ -68,32 +68,32 @@ BEGIN
   IF p_auth_pass != 'Robbin#15' THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
-  
+
   RETURN QUERY
   SELECT
-    (SELECT COUNT(*)::BIGINT FROM page_visits) as total_visits,
-    (SELECT COUNT(DISTINCT session_id)::BIGINT FROM page_visits) as unique_sessions,
-    (SELECT COALESCE(AVG(session_duration_seconds), 0)::NUMERIC FROM page_visits WHERE session_duration_seconds IS NOT NULL) as avg_session_duration_seconds,
-    (SELECT SUM(page_views)::BIGINT FROM page_visits) as total_page_views,
+    (SELECT COUNT(*)::BIGINT FROM page_visits WHERE (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)) as total_visits,
+    (SELECT COUNT(DISTINCT session_id)::BIGINT FROM page_visits WHERE (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)) as unique_sessions,
+    (SELECT COALESCE(AVG(session_duration_seconds), 0)::NUMERIC FROM page_visits WHERE session_duration_seconds IS NOT NULL AND (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)) as avg_session_duration_seconds,
+    (SELECT SUM(page_views)::BIGINT FROM page_visits WHERE (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)) as total_page_views,
     (SELECT COALESCE(jsonb_object_agg(utm_source, visit_count), '{}'::jsonb)
      FROM (
        SELECT utm_source, COUNT(*) as visit_count
        FROM page_visits
-       WHERE utm_source IS NOT NULL
+       WHERE utm_source IS NOT NULL AND (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)
        GROUP BY utm_source
      ) t) as utm_source_stats,
     (SELECT COALESCE(jsonb_object_agg(referrer, visit_count), '{}'::jsonb)
      FROM (
        SELECT referrer, COUNT(*) as visit_count
        FROM page_visits
-       WHERE referrer IS NOT NULL AND referrer != ''
+       WHERE referrer IS NOT NULL AND referrer != '' AND (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)
        GROUP BY referrer
      ) t) as referrer_stats,
     (SELECT COALESCE(jsonb_object_agg(device_type, visit_count), '{}'::jsonb)
      FROM (
        SELECT device_type, COUNT(*) as visit_count
        FROM page_visits
-       WHERE device_type IS NOT NULL
+       WHERE device_type IS NOT NULL AND (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)
        GROUP BY device_type
      ) t) as device_type_stats,
     (SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -108,6 +108,7 @@ BEGIN
      FROM (
        SELECT session_id, url, utm_source, referrer, device_type, entered_at, session_duration_seconds
        FROM page_visits
+       WHERE (p_start_date IS NULL OR entered_at >= p_start_date) AND (p_end_date IS NULL OR entered_at <= p_end_date)
        ORDER BY entered_at DESC
        LIMIT 50
      ) t) as recent_visits;
