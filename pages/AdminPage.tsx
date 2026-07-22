@@ -333,8 +333,17 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [trafficStats, setTrafficStats] = useState<any>(null);
   const [loadingTraffic, setLoadingTraffic] = useState(true);
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
-  const [trafficStartDate, setTrafficStartDate] = useState('');
-  const [trafficEndDate, setTrafficEndDate] = useState('');
+
+  // Initialize with last 24 hours in IST
+  const getISTDate = (date: Date) => {
+    return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  };
+
+  const now = getISTDate(new Date());
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const [trafficStartDate, setTrafficStartDate] = useState(yesterday.toISOString().split('T')[0]);
+  const [trafficEndDate, setTrafficEndDate] = useState(now.toISOString().split('T')[0]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -842,10 +851,15 @@ const Dashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   />
                 </div>
                 <button
-                  onClick={() => { setTrafficStartDate(''); setTrafficEndDate(''); }}
+                  onClick={() => {
+                    const now = getISTDate(new Date());
+                    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                    setTrafficStartDate(yesterday.toISOString().split('T')[0]);
+                    setTrafficEndDate(now.toISOString().split('T')[0]);
+                  }}
                   className="text-xs text-gray-500 hover:text-black font-bold"
                 >
-                  Clear
+                  Reset (24h)
                 </button>
               </div>
 
